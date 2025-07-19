@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
@@ -13,6 +17,14 @@ export class ProductsService {
   ) {}
 
   async create(createProductDto: CreateProductDto) {
+    createProductDto.sku = createProductDto.sku.toUpperCase();
+    const exists = await this.productRepository.findOneBy({
+      sku: createProductDto.sku,
+    });
+    if (exists) {
+      throw new BadRequestException('SKU must be unique');
+    }
+
     const product = this.productRepository.create(createProductDto);
     return this.productRepository.save(product);
   }
@@ -42,6 +54,16 @@ export class ProductsService {
       ...updateProductDto,
     });
     if (!product) throw new NotFoundException('Product not found');
+    if (updateProductDto.sku) {
+      const exists = await this.productRepository.findOneBy({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        sku: updateProductDto.sku,
+      });
+      if (exists && exists.id !== id) {
+        throw new BadRequestException('SKU must be unique');
+      }
+    }
+
     return this.productRepository.save(product);
   }
 
